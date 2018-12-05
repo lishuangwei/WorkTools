@@ -1,0 +1,65 @@
+本包为编译好的文件包（Linux环境 Ubuntu 16.04）
+将x/app/scrcpy文件移动到/usr/local/bin/scrcpy
+将x/server/scrcpy-server.jar文件移动到/usr/local/share/scrcpy/scrcpy-server.jar
+可用scrcpy命令打开客户端
+
+
+Linux
+
+# runtime dependencies
+sudo apt install ffmpeg libsdl2-2.0.0
+
+# client build dependencies
+sudo apt install make gcc pkg-config meson ninja-build \
+                 libavcodec-dev libavformat-dev libavutil-dev \
+                 libsdl2-dev
+
+# server build dependencies
+sudo apt install openjdk-8-jdk
+
+On old versions (like Ubuntu 16.04), meson is too old. In that case, install it from pip3:
+
+sudo apt install python3-pip
+pip3 install meson
+
+Common steps
+
+If you want to build the server, install the Android SDK (Android Studio), and set ANDROID_HOME to its directory. For example:
+
+export ANDROID_HOME=~/android/sdk
+
+If you don't want to build the server, use the prebuilt server.
+
+Clone the project:
+
+git clone https://github.com/Genymobile/scrcpy
+cd scrcpy
+
+Then, build:
+
+meson x --buildtype release --strip -Db_lto=true
+cd x
+ninja
+
+Note: ninja must be run as a non-root user (only ninja install must be run as root).
+
+Run
+
+To run without installing:
+
+./run x [options]
+
+Install
+
+After a successful build, you can install scrcpy on the system:
+
+sudo ninja install    # without sudo on Windows
+
+This installs two files:
+
+    /usr/local/bin/scrcpy
+    /usr/local/share/scrcpy/scrcpy-server.jar
+
+Just remove them to "uninstall" the application.
+
+You can then run scrcpy.
