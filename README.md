@@ -7,7 +7,7 @@ Skip smudge - We'll download binary files later in a faster batch　　
 
 Do git clone here　
 
-#git clone ...
+#git clone git@github.com:lishuangwei/WorkTools.git
 
 Fetch all the binary files in the new clone　　
 
