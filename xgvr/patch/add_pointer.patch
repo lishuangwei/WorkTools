@@ -1,0 +1,365 @@
+diff --git a/frameworks/base/Android.mk b/frameworks/base/Android.mk
+index 848835e..18064d0 100644
+--- a/frameworks/base/Android.mk
++++ b/frameworks/base/Android.mk
+@@ -466,6 +466,7 @@ LOCAL_SRC_FILES += \
+ 	packages/services/Proxy/com/android/net/IProxyPortListener.aidl \
+ 	core/java/android/service/quicksettings/IQSService.aidl \
+ 	core/java/android/service/quicksettings/IQSTileService.aidl \
++        core/java/android/os/ISelfManager.aidl \
+ 
+ # The following are native binders that need to go with the native component
+ # at system/update_engine/binder_bindings/. Use relative path to refer to them.
+diff --git a/frameworks/base/core/java/android/app/SelfManager.java b/frameworks/base/core/java/android/app/SelfManager.java
+new file mode 100644
+index 0000000..6cba33d
+--- /dev/null
++++ b/frameworks/base/core/java/android/app/SelfManager.java
+@@ -0,0 +1,94 @@
++package android.app;
++
++import android.util.Log;
++import android.content.Context;
++import android.graphics.PixelFormat;
++import android.os.ISelfManager;
++import android.os.RemoteException;
++import android.view.Gravity;
++import android.view.WindowManager;
++import android.view.WindowManager.LayoutParams;
++import android.widget.ImageView;
++import android.os.ServiceManager;
++import android.os.IBinder;
++
++public class SelfManager {
++    private static String TAG = "SelfManager";
++
++    private ISelfManager mSelfManager;
++    private positionListener mListenner;
++    private WindowManager mWindowManager;
++    private ImageView mImage;
++    private WindowManager.LayoutParams mParams;
++
++    public SelfManager(Context ctx,ISelfManager selfManager) {
++        Log.d(TAG,"SelfManager create .........");
++        mSelfManager = selfManager;
++    }
++
++    public SelfManager(Context ctx) {
++        IBinder b = ServiceManager.getService("selfservice");
++        mSelfManager = ISelfManager.Stub.asInterface(b);
++        initWindow(ctx);
++    }
++
++    public void sendClick(float x, float y) throws RemoteException {
++        Log.d(TAG,"SelfManager  sendClick.........");
++        mSelfManager.sendClick(x, y);
++    }
++
++    public void sendMove(float oldx, float oldy, float newx, float newy) throws RemoteException {
++        Log.d(TAG,"SelfManager  sendMove.........");
++        mSelfManager.sendMove(oldx, oldy, newx, newy);
++    }
++
++    public void sendKey(int keycode) throws RemoteException {
++        Log.d(TAG,"SelfManager  sendKey.........");
++        mSelfManager.sendKey(keycode);
++    }
++
++    public interface positionListener {
++        void move(float x, float y);
++    }
++
++    public void setPositionListener(positionListener listener) {
++        mListenner = listener;
++    }
++
++    private void initWindow(Context context) {
++        Log.d(TAG,"SelfManager  initWindow.........");
++        mWindowManager = (WindowManager) context.getSystemService(Context.WINDOW_SERVICE);
++        mImage = new ImageView(context);
++        mImage.setImageDrawable(context.getDrawable(com.android.internal.R.drawable.pointer_arrow));
++        mParams = new WindowManager.LayoutParams();
++
++        mParams.type = WindowManager.LayoutParams.TYPE_SYSTEM_OVERLAY;
++        mParams.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
++                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS;
++        mParams.format = PixelFormat.RGBA_8888;
++        mParams.width = LayoutParams.WRAP_CONTENT;
++        mParams.height = LayoutParams.WRAP_CONTENT;
++        mWindowManager.addView(mImage, mParams);
++    }
++
++    public void updatePosition(float x, float y) {
++        Log.d(TAG,"SelfManager  updatePosition.........");
++        mParams.x = (int) x;
++        mParams.y = (int) y;
++        if (mWindowManager != null) {
++            mWindowManager.updateViewLayout(mImage, mParams);
++        }
++    }
++
++    public void removePointer() {
++        if (mWindowManager != null && mImage != null) {
++            mWindowManager.removeView(mImage);
++        }
++    }
++
++    public void addPointer() {
++        if (mWindowManager != null && mImage != null) {
++            mWindowManager.addView(mImage, mParams);
++        }
++    }
++}
+diff --git a/frameworks/base/core/java/android/app/SystemServiceRegistry.java b/frameworks/base/core/java/android/app/SystemServiceRegistry.java
+index 4c9b977..88dcc61 100644
+--- a/frameworks/base/core/java/android/app/SystemServiceRegistry.java
++++ b/frameworks/base/core/java/android/app/SystemServiceRegistry.java
+@@ -127,6 +127,10 @@ import android.view.accessibility.AccessibilityManager;
+ import android.view.accessibility.CaptioningManager;
+ import android.view.inputmethod.InputMethodManager;
+ import android.view.textservice.TextServicesManager;
++/* 3glasses:lishuangwei on: Thu, 28 Jun 2018 11:08:46 +0800
++ */
++import android.os.ISelfManager;
++// End of 3glasses:lishuangwei
+ 
+ import java.util.HashMap;
+ 
+@@ -775,6 +779,17 @@ final class SystemServiceRegistry {
+                 return new ContextHubManager(ctx.getOuterContext(),
+                   ctx.mMainThread.getHandler().getLooper());
+             }});
++/* 3glasses:lishuangwei on: Thu, 28 Jun 2018 11:07:10 +0800
++ */
++        registerService("selfservice", SelfManager.class,
++                new CachedServiceFetcher<SelfManager>() {
++            @Override
++            public SelfManager createService(ContextImpl ctx) {
++                IBinder b = ServiceManager.getService("selfservice");
++                ISelfManager service = ISelfManager.Stub.asInterface(b);
++                return new SelfManager(ctx, service);
++            }});
++// End of 3glasses:lishuangwei
+     }
+ 
+     /**
+diff --git a/frameworks/base/core/java/android/os/ISelfManager.aidl b/frameworks/base/core/java/android/os/ISelfManager.aidl
+new file mode 100644
+index 0000000..91d6eb9
+--- /dev/null
++++ b/frameworks/base/core/java/android/os/ISelfManager.aidl
+@@ -0,0 +1,8 @@
++package android.os;
++
++interface ISelfManager {
++
++    void sendClick(float x, float y);
++    void sendMove(float oldx, float oldy, float newx, float newy);
++    void sendKey(int keycode);
++}
+diff --git a/frameworks/base/core/res/res/values/symbols.xml b/frameworks/base/core/res/res/values/symbols.xml
+index 38fbaec..b8f8a64 100755
+--- a/frameworks/base/core/res/res/values/symbols.xml
++++ b/frameworks/base/core/res/res/values/symbols.xml
+@@ -1288,6 +1288,7 @@
+   <java-symbol type="drawable" name="ic_corp_icon" />
+   <java-symbol type="drawable" name="ic_corp_statusbar_icon" />
+   <java-symbol type="drawable" name="emulator_circular_window_overlay" />
++  <java-symbol type="drawable" name="pointer_arrow" />
+ 
+   <java-symbol type="drawable" name="sim_light_blue" />
+   <java-symbol type="drawable" name="sim_light_green" />
+diff --git a/frameworks/base/libs/input/PointerController.cpp b/frameworks/base/libs/input/PointerController.cpp
+index abef66f..5c82002 100644
+--- a/frameworks/base/libs/input/PointerController.cpp
++++ b/frameworks/base/libs/input/PointerController.cpp
+@@ -243,12 +243,18 @@ void PointerController::fade(Transition transition) {
+ 
+     // Start fading.
+     if (transition == TRANSITION_IMMEDIATE) {
++/* 3glasses:lishuangwei on: Mon, 02 Jul 2018 15:55:32 +0800
+         mLocked.pointerFadeDirection = 0;
+         mLocked.pointerAlpha = 0.0f;
+         updatePointerLocked();
++ */
++// End of 3glasses:lishuangwei
+     } else {
++/* 3glasses:lishuangwei on: Mon, 02 Jul 2018 15:55:40 +0800
+         mLocked.pointerFadeDirection = -1;
+         startAnimationLocked();
++ */
++// End of 3glasses:lishuangwei
+     }
+ }
+ 
+diff --git a/frameworks/base/packages/SettingsLib/src/com/android/settingslib/drawer/SettingsDrawerActivity.java b/frameworks/base/packages/SettingsLib/src/com/android/settingslib/drawer/SettingsDrawerActivity.java
+index 9c0114e..02289b5 100644
+--- a/frameworks/base/packages/SettingsLib/src/com/android/settingslib/drawer/SettingsDrawerActivity.java
++++ b/frameworks/base/packages/SettingsLib/src/com/android/settingslib/drawer/SettingsDrawerActivity.java
+@@ -97,6 +97,10 @@ public class SettingsDrawerActivity extends Activity {
+         if (mDrawerLayout == null) {
+             return;
+         }
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 15:03:26 +0800
++ */
++        mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
++// End of 3glasses:lishuangwei
+         Toolbar toolbar = (Toolbar) findViewById(R.id.action_bar);
+         if (theme.getBoolean(android.R.styleable.Theme_windowNoTitle, false)) {
+             toolbar.setVisibility(View.GONE);
+@@ -213,7 +217,10 @@ public class SettingsDrawerActivity extends Activity {
+ 
+     public void openDrawer() {
+         if (mDrawerLayout != null) {
++/* 3glasses:lishuangwei on: Tue, 19 Jun 2018 16:16:49 +0800
+             mDrawerLayout.openDrawer(Gravity.START);
++ */
++// End of 3glasses:lishuangwei
+         }
+     }
+ 
+@@ -256,7 +263,11 @@ public class SettingsDrawerActivity extends Activity {
+         // TODO: Do this in the background with some loading.
+         mDrawerAdapter.updateCategories();
+         if (mDrawerAdapter.getCount() != 0) {
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 15:02:38 +0800
+             mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
++ */
++            mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
++// End of 3glasses:lishuangwei
+         } else {
+             mDrawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+         }
+diff --git a/frameworks/base/services/core/java/com/android/server/SelfManagerService.java b/frameworks/base/services/core/java/com/android/server/SelfManagerService.java
+new file mode 100644
+index 0000000..72922ef
+--- /dev/null
++++ b/frameworks/base/services/core/java/com/android/server/SelfManagerService.java
+@@ -0,0 +1,101 @@
++package com.android.server;
++
++import android.util.Log;
++import android.os.ISelfManager;
++import android.hardware.input.InputManager;
++import android.os.SystemClock;
++import android.view.InputDevice;
++import android.view.KeyCharacterMap;
++import android.view.KeyEvent;
++import android.view.MotionEvent;
++
++public class SelfManagerService extends ISelfManager.Stub {
++    private static final String TAG = "SelfManagerService";
++
++    public void sendClick(float x, float y) {
++        Log.d(TAG, "sendClick x = " + x + ",y = " + y);
++        sendTap(InputDevice.SOURCE_MOUSE, x, y);
++    }
++
++    public void sendMove(float oldx, float oldy, float newx, float newy) {
++        Log.d(TAG, "sendMove x = " + oldx + ",y = " + oldy +",newx = " + newx + ", newy = " + newy);
++        sendSwipe(InputDevice.SOURCE_MOUSE, oldx, oldy, newx, newy, -1);
++    }
++
++    public void sendKey(int keycode) {
++        Log.d(TAG, "sendKey keycode = " + keycode);
++        sendKeyEvent(InputDevice.SOURCE_KEYBOARD, keycode, false);
++    }
++
++    private void sendTap(int inputSource, float x, float y) {
++        long now = SystemClock.uptimeMillis();
++        injectMotionEvent(inputSource, MotionEvent.ACTION_DOWN, now, x, y, 1.0f);
++        injectMotionEvent(inputSource, MotionEvent.ACTION_UP, now, x, y, 0.0f);
++    }
++
++    private void sendSwipe(int inputSource, float x1, float y1, float x2, float y2, int duration) {
++        if (duration < 0) {
++            duration = 300;
++        }
++        long now = SystemClock.uptimeMillis();
++        injectMotionEvent(inputSource, MotionEvent.ACTION_DOWN, now, x1, y1, 1.0f);
++        long startTime = now;
++        long endTime = startTime + duration;
++        while (now < endTime) {
++            long elapsedTime = now - startTime;
++            float alpha = (float) elapsedTime / duration;
++            injectMotionEvent(inputSource, MotionEvent.ACTION_MOVE, now, lerp(x1, x2, alpha),
++                    lerp(y1, y2, alpha), 1.0f);
++            now = SystemClock.uptimeMillis();
++        }
++        injectMotionEvent(inputSource, MotionEvent.ACTION_UP, now, x2, y2, 0.0f);
++    }
++
++    private void injectMotionEvent(int inputSource, int action, long when, float x, float y, float pressure) {
++        final float DEFAULT_SIZE = 1.0f;
++        final int DEFAULT_META_STATE = 0;
++        final float DEFAULT_PRECISION_X = 1.0f;
++        final float DEFAULT_PRECISION_Y = 1.0f;
++        final int DEFAULT_EDGE_FLAGS = 0;
++        MotionEvent event = MotionEvent.obtain(when, when, action, x, y, pressure, DEFAULT_SIZE,
++                DEFAULT_META_STATE, DEFAULT_PRECISION_X, DEFAULT_PRECISION_Y,
++                getInputDeviceId(inputSource), DEFAULT_EDGE_FLAGS);
++        event.setSource(inputSource);
++        InputManager.getInstance().injectInputEvent(event,
++                InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH);
++    }
++
++    private int getInputDeviceId(int inputSource) {
++        final int DEFAULT_DEVICE_ID = 0;
++        int[] devIds = InputDevice.getDeviceIds();
++        for (int devId : devIds) {
++            InputDevice inputDev = InputDevice.getDevice(devId);
++            if (inputDev.supportsSource(inputSource)) {
++                return devId;
++            }
++        }
++        return DEFAULT_DEVICE_ID;
++    }
++
++    private static final float lerp(float a, float b, float alpha) {
++        return (b - a) * alpha + a;
++    }
++
++    private void sendKeyEvent(int inputSource, int keyCode, boolean longpress) {
++        long now = SystemClock.uptimeMillis();
++        injectKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, 0,
++                    KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, inputSource));
++        if (longpress) {
++            injectKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 1, 0,
++                        KeyCharacterMap.VIRTUAL_KEYBOARD, 0, KeyEvent.FLAG_LONG_PRESS,
++                        inputSource));
++        }
++        injectKeyEvent(new KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0, 0,
++                    KeyCharacterMap.VIRTUAL_KEYBOARD, 0, 0, inputSource));
++    }
++
++    private void injectKeyEvent(KeyEvent event) {
++        InputManager.getInstance().injectInputEvent(event,
++                InputManager.INJECT_INPUT_EVENT_MODE_WAIT_FOR_FINISH);
++    }
++}
+diff --git a/frameworks/base/services/java/com/android/server/SystemServer.java b/frameworks/base/services/java/com/android/server/SystemServer.java
+index e4e8323..71ea20a 100644
+--- a/frameworks/base/services/java/com/android/server/SystemServer.java
++++ b/frameworks/base/services/java/com/android/server/SystemServer.java
+@@ -107,6 +107,10 @@ import com.android.server.usage.UsageStatsService;
+ import com.android.server.vr.VrManagerService;
+ import com.android.server.webkit.WebViewUpdateService;
+ import com.android.server.wm.WindowManagerService;
++/* 3glasses:lishuangwei on: Thu, 28 Jun 2018 11:05:24 +0800
++ */
++import com.android.server.SelfManagerService;
++// End of 3glasses:lishuangwei
+ 
+ import dalvik.system.VMRuntime;
+ import dalvik.system.PathClassLoader;
+@@ -661,6 +665,10 @@ public final class SystemServer {
+                     !mFirstBoot, mOnlyCore);
+             ServiceManager.addService(Context.WINDOW_SERVICE, wm);
+             ServiceManager.addService(Context.INPUT_SERVICE, inputManager);
++/* 3glasses:lishuangwei on: Thu, 28 Jun 2018 11:01:53 +0800
++ */
++            ServiceManager.addService("selfservice", new SelfManagerService());
++// End of 3glasses:lishuangwei
+             Trace.traceEnd(Trace.TRACE_TAG_SYSTEM_SERVER);
+ 
+             if (!disableVrManager) {

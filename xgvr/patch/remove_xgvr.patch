@@ -1,0 +1,85 @@
+diff --git a/device/qcom/sepolicy/common/file_contexts b/device/qcom/sepolicy/common/file_contexts
+index bf582df..53b84ce 100644
+--- a/device/qcom/sepolicy/common/file_contexts
++++ b/device/qcom/sepolicy/common/file_contexts
+@@ -257,7 +257,6 @@
+ /system/bin/resize_ext4                         u:object_r:resize_ext4_exec:s0
+ /system/bin/resize2fs                           u:object_r:resize_ext4_exec:s0
+ /system/bin/bhud                                u:object_r:bhud_exec:s0
+-/system/bin/sensors-service_3glasses            u:object_r:xgvr_exec:s0
+ /system/bin/wt_diag                             u:object_r:wt_diag_exec:s0
+ 
+ ###################################
+@@ -402,4 +401,4 @@
+ /proc/charing_test                                                       u:object_r:proc_charging:s0
+ 
+ #add for control fan
+-/dev/pwm_fan                                    u:object_r:fan_device:s0
+\ No newline at end of file
++/dev/pwm_fan                                    u:object_r:fan_device:s0
+diff --git a/device/qcom/sepolicy/common/xgvr.te b/device/qcom/sepolicy/common/xgvr.te
+deleted file mode 100644
+index 2bbb4f0..0000000
+--- a/device/qcom/sepolicy/common/xgvr.te
++++ /dev/null
+@@ -1,20 +0,0 @@
+-# ==============================================
+-# Type Declaration
+-# ==============================================
+-
+-type xgvr,domain;
+-type xgvr_exec, exec_type, file_type;
+-
+-
+-init_daemon_domain(xgvr)
+-domain_auto_trans(init,xgvr_exec,xgvr);
+-
+-#============= servicemanager ==============
+-allow servicemanager xgvr:dir search;
+-allow servicemanager xgvr:file { open read };
+-allow servicemanager xgvr:process getattr;
+-
+-#============= xgvr ==============
+-allow xgvr rootfs:lnk_file getattr;
+-allow xgvr servicemanager:binder { call transfer };
+-#allow xgvr device:chr_file { ioctl open read write };
+diff --git a/device/qcom/wt3box/init.target.rc b/device/qcom/wt3box/init.target.rc
+index 96ff689..342816b 100644
+--- a/device/qcom/wt3box/init.target.rc
++++ b/device/qcom/wt3box/init.target.rc
+@@ -450,9 +450,3 @@ service bhud /system/bin/bhud
+     group root
+     seclabel u:r:bhud:s0
+ 
+-
+-service xgvr /system/bin/sensors-service_3glasses
+-    class core
+-    user root
+-    group root
+-
+diff --git a/device/qcom/wt3box/sensors/hals.conf b/device/qcom/wt3box/sensors/hals.conf
+index d35d7b2..48879aa 100644
+--- a/device/qcom/wt3box/sensors/hals.conf
++++ b/device/qcom/wt3box/sensors/hals.conf
+@@ -1,3 +1,2 @@
+-sensors.3glasses.so
+ sensors.ssc.so
+ qfp.wakeup.so
+diff --git a/device/qcom/wt3box/wt3box.mk b/device/qcom/wt3box/wt3box.mk
+index d0ba3e8..b3ea917 100644
+--- a/device/qcom/wt3box/wt3box.mk
++++ b/device/qcom/wt3box/wt3box.mk
+@@ -160,13 +160,6 @@ endif
+ PRODUCT_COPY_FILES += \
+ 	device/qcom/wt3box/app/svrapi_config.txt:/data/misc/qvr/svrapi_config.txt
+ 
+-PRODUCT_PACKAGES += \
+-    sensors.3glasses \
+-    sensors-qvr_3glasses \
+-    sensors-service_3glasses
+-
+-PRODUCT_PACKAGES_DEBUG += sensors-hal-example-app \
+-    sensors-service_3glasses-test
+ 
+ #temprary disable bootanimation
+ # PRODUCT_COPY_FILES += xgvr/bootanimation/bootanimation.zip:/system/media/bootanimation.zip

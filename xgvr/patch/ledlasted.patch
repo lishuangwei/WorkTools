@@ -1,0 +1,140 @@
+diff --git a/frameworks/base/services/core/java/com/android/server/lights/LightsService.java b/frameworks/base/services/core/java/com/android/server/lights/LightsService.java
+index 278c1c4..3e09201 100755
+--- a/frameworks/base/services/core/java/com/android/server/lights/LightsService.java
++++ b/frameworks/base/services/core/java/com/android/server/lights/LightsService.java
+@@ -193,6 +193,9 @@ public class LightsService extends SystemService {
+ 
+         void ledModeSet(int mode) {
+             Slog.i(TAG, "!LED update mode(" + mode + ")");
++            if("charger".equals(SystemProperties.get("sys.3box.bootmode", ""))) {
++                return;
++            }
+             switch(mode) {
+                 case 0:
+                     setStatic(0, 0xffffff, 0);
+diff --git a/frameworks/base/services/core/jni/com_android_server_lights_LightsService.cpp b/frameworks/base/services/core/jni/com_android_server_lights_LightsService.cpp
+index 19c9a36..80124f0 100755
+--- a/frameworks/base/services/core/jni/com_android_server_lights_LightsService.cpp
++++ b/frameworks/base/services/core/jni/com_android_server_lights_LightsService.cpp
+@@ -25,6 +25,7 @@
+ #include <hardware/hardware.h>
+ #include <hardware/lights.h>
+ #include <fcntl.h>
++#include <cutils/properties.h>
+ 
+ #include <stdio.h>
+ 
+@@ -53,7 +54,6 @@ namespace android
+ 
+ static char led_duty_mode_breathing_str[] = "1,13,26,39,52,65,78,91,100,91,78,65,52,39,26,13,1";
+ static char led_duty_mode_blinking_str[] = "0,100";
+-static char led_duty_mode_static_str[] = "100";
+ 
+ // These values must correspond with the LIGHT_ID constants in
+ // LightsService.java
+@@ -210,14 +210,10 @@ static int write_str(char const* path, char const* value)
+ 
+ static void _set_all_off(void)
+ {
+-    write_int(LED_RED_BLINK_FILE, 0);
+-    write_int(LED_GREEN_BLINK_FILE, 0);
+-    write_int(LED_BLUE_BLINK_FILE, 0);
+ 
+-
+-    // write_str(LED_RED_DUTY_PCTS_FILE, "0");
+-    // write_str(LED_GREEN_DUTY_PCTS_FILE, "0");
+-    // write_str(LED_BLUE_DUTY_PCTS_FILE, "0");
++    write_str(LED_RED_DUTY_PCTS_FILE, "100");
++    write_str(LED_GREEN_DUTY_PCTS_FILE, "100");
++    write_str(LED_BLUE_DUTY_PCTS_FILE, "100");
+     write_int(LED_RED_BRIGHTNESS_FILE, 0);
+     write_int(LED_GREEN_BRIGHTNESS_FILE, 0);
+     write_int(LED_BLUE_BRIGHTNESS_FILE, 0);
+@@ -231,9 +227,6 @@ static void _sync(void)
+     // Force sleep here to sync all LEDs.
+     usleep(LED_SYNC_DELAY_US);
+ 
+-    write_int(LED_RED_START_IDX_FILE, 0);
+-    write_int(LED_GREEN_START_IDX_FILE, 0);
+-    write_int(LED_BLUE_START_IDX_FILE, 0);
+ }
+ 
+ 
+@@ -248,6 +241,11 @@ echo "1,13,26,39,52,65,78,91,100,91,78,65,52,39,26,13,1" > duty_pcts
+ static void setBreath(JNIEnv* /* env */, jobject /* clazz */, jint light,
+                       jint colorARGB)
+ {
++    char boot_mode[PROP_VALUE_MAX] = {0};
++    property_get("sys.3box.bootmode", boot_mode, "null");
++    if (strncmp(boot_mode, "charger", 7) == 0) {
++        return;
++    }
+ 
+     int red, green, blue;
+ 
+@@ -337,6 +335,12 @@ echo "100" > duty_pcts
+ static void setStatic(JNIEnv* /* env */, jobject /* clazz */, jint light,
+                       jint colorARGB, jint brightness)
+ {
++    char boot_mode[PROP_VALUE_MAX] = {0};
++    property_get("sys.3box.bootmode", boot_mode, "null");
++    if (strncmp(boot_mode, "charger", 7) == 0) {
++        return;
++    }
++
+     int red, green, blue;
+ 
+     if (light < 0 || light >= LIGHT_COUNT) {
+@@ -355,15 +359,12 @@ static void setStatic(JNIEnv* /* env */, jobject /* clazz */, jint light,
+     write_int(LED_BLUE_RAMP_STEP_MS_FILE, 0);
+ 
+     if (red) {
+-        write_str(LED_RED_DUTY_PCTS_FILE, led_duty_mode_static_str);
+         write_int(LED_RED_BRIGHTNESS_FILE, brightness / 100.0 * 255);
+     }
+     if (green) {
+-        write_str(LED_GREEN_DUTY_PCTS_FILE, led_duty_mode_static_str);
+         write_int(LED_GREEN_BRIGHTNESS_FILE, brightness / 100.0 * 255);
+     }
+     if (blue) {
+-        write_str(LED_BLUE_DUTY_PCTS_FILE, led_duty_mode_static_str);
+         write_int(LED_BLUE_BRIGHTNESS_FILE, brightness / 100.0 * 255);
+     }
+ 
+diff --git a/system/core/healthd/healthd_board_3box.cpp b/system/core/healthd/healthd_board_3box.cpp
+index 0c155d0..35f4fb7 100755
+--- a/system/core/healthd/healthd_board_3box.cpp
++++ b/system/core/healthd/healthd_board_3box.cpp
+@@ -101,6 +101,11 @@ static int __write_str(char const* path, char const* value)
+ 	}
+ }
+ 
++void healthd_board_led_reset(void) {
++    __write_int(LED_RED_BRIGHTNESS_FILE, 0);
++    __write_int(LED_GREEN_BRIGHTNESS_FILE, 0);
++    __write_int(LED_BLUE_BRIGHTNESS_FILE, 0);
++}
+ /*
+ static
+ echo 0 > ramp_step_ms
+@@ -119,6 +124,7 @@ static void __led_set_static(int color, int brightness)
+ 	__write_int(LED_RED_RAMP_STEP_MS_FILE, 0);
+ 	__write_int(LED_GREEN_RAMP_STEP_MS_FILE, 0);
+ 	__write_int(LED_BLUE_RAMP_STEP_MS_FILE, 0);
++	healthd_board_led_reset();
+ 
+ 	if (red) {
+ 		__write_int(LED_RED_BRIGHTNESS_FILE, brightness / 100.0 * 255);
+@@ -134,9 +140,6 @@ static void __led_set_static(int color, int brightness)
+ 	usleep(200000);
+ }
+ 
+-void healthd_board_led_reset(void) {
+-	__led_set_static(0xffffff, 0);
+-}
+ 
+ void healthd_board_led_mode_set(led_mode_t mode) {
+ 	KLOG_ERROR(LOG_TAG, "!LED mode set. mode(%d)\n", mode);
+diff --git a/vendor/wingtech/build/tools/binary/mdtp.img b/vendor/wingtech/build/tools/binary/mdtp.img
+old mode 100644
+new mode 100755

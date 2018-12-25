@@ -1,0 +1,19 @@
+diff --git a/system/sepolicy/service.te b/system/sepolicy/service.te
+index 9a77ce2..5de3a74 100644
+--- a/system/sepolicy/service.te
++++ b/system/sepolicy/service.te
+@@ -120,3 +120,4 @@ type wifip2p_service, app_api_service, system_server_service, service_manager_ty
+ type wifiscanner_service, system_api_service, system_server_service, service_manager_type;
+ type wifi_service, app_api_service, system_server_service, service_manager_type;
+ type window_service, system_api_service, system_server_service, service_manager_type;
++type self_service, system_api_service, system_server_service, service_manager_type;
+diff --git a/system/sepolicy/service_contexts b/system/sepolicy/service_contexts
+index fffbd4d..f5c0d50 100644
+--- a/system/sepolicy/service_contexts
++++ b/system/sepolicy/service_contexts
+@@ -145,4 +145,5 @@ wifip2p                                   u:object_r:wifip2p_service:s0
+ wifiscanner                               u:object_r:wifiscanner_service:s0
+ wifi                                      u:object_r:wifi_service:s0
+ window                                    u:object_r:window_service:s0
++selfservice                               u:object_r:self_service:s0
+ *                                         u:object_r:default_android_service:s0

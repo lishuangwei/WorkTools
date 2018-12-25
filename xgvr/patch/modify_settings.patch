@@ -1,0 +1,121 @@
+diff --git a/packages/apps/Settings/AndroidManifest.xml b/packages/apps/Settings/AndroidManifest.xml
+index 0ac680a..1be7e86 100755
+--- a/packages/apps/Settings/AndroidManifest.xml
++++ b/packages/apps/Settings/AndroidManifest.xml
+@@ -87,6 +87,7 @@
+     <uses-permission android:name="android.permission.MANAGE_NOTIFICATIONS"/>
+     <uses-permission android:name="android.permission.ACCESS_IMS_CALL_SERVICE" />
+     <uses-permission android:name="android.permission.DELETE_PACKAGES"/>
++    <uses-permission android:name="android.permission.INJECT_EVENTS" />
+ 
+     <application android:label="@string/settings_label"
+             android:icon="@mipmap/ic_launcher_settings"
+diff --git a/packages/apps/Settings/res/drawable/selectable_card.xml b/packages/apps/Settings/res/drawable/selectable_card.xml
+index df9ddb1..1b5fcef 100644
+--- a/packages/apps/Settings/res/drawable/selectable_card.xml
++++ b/packages/apps/Settings/res/drawable/selectable_card.xml
+@@ -19,4 +19,4 @@
+     xmlns:android="http://schemas.android.com/apk/res/android"
+     android:color="?android:attr/colorControlHighlight">
+     <item android:drawable="@color/card_background"/>
+-</ripple>
+\ No newline at end of file
++</ripple>
+diff --git a/packages/apps/Settings/res/menu/options_menu.xml b/packages/apps/Settings/res/menu/options_menu.xml
+index f73ce90..bcc3bba 100644
+--- a/packages/apps/Settings/res/menu/options_menu.xml
++++ b/packages/apps/Settings/res/menu/options_menu.xml
+@@ -19,6 +19,11 @@
+         android:id="@+id/search"
+         android:title="@string/search_menu"
+         android:icon="@*android:drawable/ic_search_api_material"
++        android:visible="false"
+         android:showAsAction="collapseActionView|ifRoom"
+         android:actionViewClass="android.widget.SearchView" />
+-</menu>
+\ No newline at end of file
++    <item
++        android:id="@+id/test"
++        android:title="@string/search_menu"
++        android:showAsAction="never"/>
++</menu>
+diff --git a/packages/apps/Settings/src/com/android/settings/dashboard/DashboardAdapter.java b/packages/apps/Settings/src/com/android/settings/dashboard/DashboardAdapter.java
+index 60d5b67..2aa6b8e 100755
+--- a/packages/apps/Settings/src/com/android/settings/dashboard/DashboardAdapter.java
++++ b/packages/apps/Settings/src/com/android/settings/dashboard/DashboardAdapter.java
+@@ -224,23 +224,35 @@ public class DashboardAdapter extends RecyclerView.Adapter<DashboardAdapter.Dash
+         for (int i = 0; mConditions != null && i < mConditions.size(); i++) {
+             boolean shouldShow = mConditions.get(i).shouldShow();
+             hasConditions |= shouldShow;
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 18:36:52 +0800
+             countItem(mConditions.get(i), R.layout.condition_card, shouldShow, NS_CONDITION);
++ */
++// End of 3glasses:lishuangwei
+         }
+         boolean hasSuggestions = mSuggestions != null && mSuggestions.size() != 0;
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 18:37:04 +0800
+         countItem(null, R.layout.dashboard_spacer, hasConditions && hasSuggestions, NS_SPACER);
+         countItem(null, R.layout.suggestion_header, hasSuggestions, NS_SPACER);
++ */
++// End of 3glasses:lishuangwei
+         resetCount();
+         if (mSuggestions != null) {
+             int maxSuggestions = getDisplayableSuggestionCount();
+             for (int i = 0; i < mSuggestions.size(); i++) {
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 18:38:09 +0800
+                 countItem(mSuggestions.get(i), R.layout.suggestion_tile, i < maxSuggestions,
+                         NS_SUGGESTION);
++ */
++// End of 3glasses:lishuangwei
+             }
+         }
+         resetCount();
+         for (int i = 0; mCategories != null && i < mCategories.size(); i++) {
+             DashboardCategory category = mCategories.get(i);
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 18:47:11 +0800
+             countItem(category, R.layout.dashboard_category, mIsShowingAll, NS_ITEMS);
++ */
++// End of 3glasses:lishuangwei
+             for (int j = 0; j < category.tiles.size(); j++) {
+                 Tile tile = category.tiles.get(j);
+                 if (tile.intent.getComponent().getClassName().contains(LTE_4G_ACTIVITY)) {
+diff --git a/packages/apps/Settings/src/com/android/settings/dashboard/DashboardSummary.java b/packages/apps/Settings/src/com/android/settings/dashboard/DashboardSummary.java
+index 6dfc22e..5caa821 100755
+--- a/packages/apps/Settings/src/com/android/settings/dashboard/DashboardSummary.java
++++ b/packages/apps/Settings/src/com/android/settings/dashboard/DashboardSummary.java
+@@ -24,6 +24,10 @@ import android.content.IntentFilter;
+ import android.os.AsyncTask;
+ import android.os.Bundle;
+ import android.support.v7.widget.LinearLayoutManager;
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 16:43:07 +0800
++ */
++import android.support.v7.widget.GridLayoutManager;
++// End of 3glasses:lishuangwei
+ import android.util.Log;
+ import android.view.LayoutInflater;
+ import android.view.View;
+@@ -76,7 +80,11 @@ public class DashboardSummary extends InstrumentedFragment
+     private SummaryLoader mSummaryLoader;
+     private ConditionManager mConditionManager;
+     private SuggestionParser mSuggestionParser;
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 16:35:31 +0800
+     private LinearLayoutManager mLayoutManager;
++ */
++    private GridLayoutManager mLayoutManager;
++// End of 3glasses:lishuangwei
+     private SuggestionsChecks mSuggestionsChecks;
+     private ArrayList<String> mSuggestionsShownLogged;
+     private ArrayList<String> mSuggestionsHiddenLogged;
+@@ -220,8 +228,12 @@ public class DashboardSummary extends InstrumentedFragment
+     public void onViewCreated(View view, Bundle bundle) {
+         long startTime = System.currentTimeMillis();
+         mDashboard = (FocusRecyclerView) view.findViewById(R.id.dashboard_container);
++/* 3glasses:lishuangwei on: Fri, 15 Jun 2018 16:45:15 +0800
+         mLayoutManager = new LinearLayoutManager(getContext());
+         mLayoutManager.setOrientation(LinearLayoutManager.VERTICAL);
++ */
++        mLayoutManager = new GridLayoutManager(getContext(), 3);
++// End of 3glasses:lishuangwei
+         if (bundle != null) {
+             int scrollPosition = bundle.getInt(EXTRA_SCROLL_POSITION);
+             mLayoutManager.scrollToPosition(scrollPosition);
