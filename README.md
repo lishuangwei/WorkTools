@@ -1,4 +1,5 @@
-# WorkToolsfs
+# WorkToolsfs（拉取项目需要翻墙）
+## [蓝灯(Lantern)最新版下载点这里](https://github.com/getlantern/download)
 first pc install git lfs
 
 Skip smudge - We'll download binary files later in a faster batch　　
